@@ -9,6 +9,7 @@ from datetime import datetime
 import imgaug as ia
 import itertools
 import imageio
+import cv2
 
 class ImageAugmentationApp:
     def __init__(self, root):
@@ -21,7 +22,7 @@ class ImageAugmentationApp:
         self.original_images_np = [] # Original image data np
         self.display_images = []  # Images to be displayed on the screen
         self.image_frames = []  # Frames holding the images and the labels
-
+        
         # Set up the menu
         menubar = Menu(root)
         file_menu = Menu(menubar, tearoff=0)
@@ -29,10 +30,9 @@ class ImageAugmentationApp:
         file_menu.add_command(label="종료", command=root.quit)
         menubar.add_cascade(label="파일", menu=file_menu)
 
-        # 새로운 '이미지 증강' 메뉴 항목 생성
         augmentation_menu = Menu(menubar, tearoff=0)
-        augmentation_menu.add_command(label="증강하기", command=self.open_augmentation_window)  # 증강 창을 여는 함수 연결
-        menubar.add_cascade(label="이미지 증강", menu=augmentation_menu)  # 메인 메뉴바에 추가
+        augmentation_menu.add_command(label="증강하기", command=self.open_augmentation_window)
+        menubar.add_cascade(label="이미지 증강", menu=augmentation_menu)
 
         root.config(menu=menubar)
 
@@ -78,7 +78,7 @@ class ImageAugmentationApp:
     def load_images(self):
         # Open the file selection dialog
         file_paths = filedialog.askopenfilenames(filetypes=[("Image files", "*.jpg *.jpeg *.png")])
-
+        
         if not file_paths:
             return
 
@@ -89,7 +89,7 @@ class ImageAugmentationApp:
         self.display_images.clear()
         self.image_frames.clear()
         self.original_images_np.clear()
-
+        
         num_images_width = self.root.winfo_width() // 260  # Assuming image width of 250 with some padding
 
         for i, file_path in enumerate(file_paths):
@@ -97,7 +97,7 @@ class ImageAugmentationApp:
             image = Image.open(file_path)
             self.original_images.append(image)
             image_np = imageio.v2.imread(file_path)
-            self.original_images_np.append(image_np)
+            self.original_images_np.append((image_np, (self.read_label_data(file_path))))
             
             # Resize the image for display
             display_image = image.resize((250, 250), Image.LANCZOS)  # or Image.ANTIALIAS
@@ -124,45 +124,65 @@ class ImageAugmentationApp:
 
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))  # Update the scrollable area
     
+    def read_label_data(self, file_path):
+        txt_file_path = os.path.splitext(file_path)[0] + ".txt"
+        
+        if not os.path.exists(txt_file_path):
+            return None
+
+        # 라벨 데이터를 저장할 리스트를 초기화합니다.
+        labels = []
+
+        # 텍스트 파일을 엽니다.
+        with open(txt_file_path, 'r') as file:
+            for line in file:
+                stripped_line = line.strip()
+                components = stripped_line.split()
+
+                # 첫 번째 요소는 라벨이므로 정수로 변환합니다.
+                label = int(components[0])
+
+                # 나머지 요소는 바운딩 박스의 좌표이므로 float로 변환합니다.
+                bbox_coords = [float(num) for num in components[1:]]
+
+                # 라벨과 좌표를 결합한 리스트를 labels에 추가합니다.
+                labels.append([label] + bbox_coords)
+
+        return labels
+
     def open_augmentation_window(self):
         self.augmentation_window = Toplevel(self.root)
         self.augmentation_window.title("이미지 증강")
-        self.augmentation_window.geometry("1600x800")  # 창 크기 수정
-        self.augmentation_window.resizable(False, False)  # 창의 크기 조절 불가능
+        self.augmentation_window.geometry("1600x800") 
+        self.augmentation_window.resizable(False, False) 
 
         scrollbar = tk.Scrollbar(self.augmentation_window)
     
-        # 이미지 목록을 위한 Listbox 생성 (다중 선택 모드로 변경)
         self.image_listbox = tk.Listbox(self.augmentation_window, height=20, width=40, selectmode='extended', yscrollcommand=scrollbar.set)
         for i, img in enumerate(self.original_images):
-            file_name = img.filename.split("/")[-1]  # 이미지의 파일 이름 가져오기
+            file_name = img.filename.split("/")[-1] 
             self.image_listbox.insert(i, file_name)
         scrollbar.config(command=self.image_listbox.yview)
 
         self.image_listbox.pack(side="left", fill="y")
-        self.image_listbox.pack(side="left", fill="both", expand=True)  # Listbox 크기가 윈도우 크기에 맞게 조절되도록 설정
+        self.image_listbox.pack(side="left", fill="both", expand=True)  
 
-        # 선택된 이미지의 미리보기를 위한 레이블 생성
         self.preview_label = Label(self.augmentation_window, text="이미지 미리보기")
         self.preview_label.pack(side="top")
 
-        # 증강 옵션 드롭박스 메뉴 설정
         self.augmentation_options = ["직접 augmentation 함수를 지정", "모든 augmentation 함수를 실행", "모든 경우의 수의 augmentation 함수를 실행"]
         self.selected_option = StringVar()
-        self.selected_option.set(self.augmentation_options[0])  # 기본값 설정
+        self.selected_option.set(self.augmentation_options[0])
         self.options_menu = OptionMenu(self.augmentation_window, self.selected_option, *self.augmentation_options)
         
-        # 선택된 이미지 수를 표시하기 위한 레이블 생성
         self.selection_info_label = Label(self.augmentation_window, text="")
         self.selection_info_label.pack(side="bottom")
 
-        # 함수 실행 수를 입력받을 입력 필드 생성
         self.execution_count_label = Label(self.augmentation_window, text="함수 실행 수:")
         self.execution_count_entry = Entry(self.augmentation_window)
         
         self.augment_button = Button(self.augmentation_window, text="증강하기", command=self.perform_augmentation)
         
-        # 함수 목록을 위한 체크박스 설정
         self.augmentation_functions = {
             "좌우 반전": [],
             "상하 반전": [],
@@ -184,13 +204,13 @@ class ImageAugmentationApp:
         self.frames = []
         
         for function, params in self.augmentation_functions.items():
-            frame = tk.Frame(self.augmentation_window)  # 개별 프레임 생성
-            frame.pack(fill=tk.X)  # 프레임을 X 축으로 채우며 패킹
+            frame = tk.Frame(self.augmentation_window)
+            frame.pack(fill=tk.X)
             self.frames.append(frame) 
 
             check_var = self.function_check_vars[len(self.checkboxes)]
             checkbox = tk.Checkbutton(frame, text=function, variable=check_var) 
-            checkbox.pack(side=tk.LEFT)  # 왼쪽으로 패킹
+            checkbox.pack(side=tk.LEFT) 
             self.checkboxes.append(checkbox)
 
             self.checkbox_vars_mapping[function] = check_var
@@ -199,28 +219,27 @@ class ImageAugmentationApp:
             param_entries = {}
 
             for param in params:
-                # 파라미터에 대한 라벨 및 입력 필드 생성
                 label_min = tk.Label(frame, text=f"{param} (min)")
                 label_min.pack(side=tk.LEFT)
 
-                entry_min = tk.Entry(frame, width=5, name=f"{param}_min")  # 이름 설정 추가
+                entry_min = tk.Entry(frame, width=5, name=f"{param}_min")
                 entry_min.pack(side=tk.LEFT)
 
                 label_max = tk.Label(frame, text=f"{param} (max)")
                 label_max.pack(side=tk.LEFT)
 
-                entry_max = tk.Entry(frame, width=5, name=f"{param}_max")  # 이름 설정 추가
+                entry_max = tk.Entry(frame, width=5, name=f"{param}_max") 
                 entry_max.pack(side=tk.LEFT)
 
-                # 파라미터 이름을 키로 하여 entry 위젯을 저장합니다.
                 param_entries[param] = {"min": entry_min, "max": entry_max}
 
             self.input_fields[function] = param_entries
-        
-        # 처음에는 드롭다운 메뉴와 실행 횟수 입력 필드, 증강 버튼을 숨김
+
+        self.label_creation_var = tk.IntVar() 
+        self.label_creation_checkbox = tk.Checkbutton(self.augmentation_window, text="라벨 포함 생성", variable=self.label_creation_var)
+
         self.hide_menus()
 
-        # 이벤트 연결
         self.image_listbox.bind('<<ListboxSelect>>', self.on_image_select)
         self.selected_option.trace("w", self.ui_packing)    
 
@@ -254,6 +273,7 @@ class ImageAugmentationApp:
     def hide_menus(self):
         for frame in self.frames:
             frame.pack_forget()
+        self.label_creation_checkbox.pack_forget()
         self.options_menu.pack_forget()
         self.execution_count_label.pack_forget()
         self.execution_count_entry.pack_forget()
@@ -266,10 +286,9 @@ class ImageAugmentationApp:
 
         selected = self.selected_option.get()
         
-        # "직접 augmentation 함수를 지정" 옵션 선택 시 체크박스를 표시합니다.
         if selected == "직접 augmentation 함수를 지정" or selected == "모든 경우의 수의 augmentation 함수를 실행":
             for frame in self.frames:
-                frame.pack(side="top", anchor="w", fill=tk.X)  # 여기가 수정되었습니다.
+                frame.pack(side="top", anchor="w", fill=tk.X)
         else:
             for frame in self.frames:
                 frame.pack_forget()
@@ -277,6 +296,7 @@ class ImageAugmentationApp:
         self.execution_count_label.pack(side="top", pady=(10, 0))
         self.execution_count_entry.pack(side="top", pady=(0, 10))
         self.augment_button.pack(side="top", pady=20)
+        self.label_creation_checkbox.pack(side="top", padx=10)
 
     def on_image_select(self, event):
         # 선택한 이미지 인덱스들 가져오기
@@ -346,7 +366,6 @@ class ImageAugmentationApp:
     def apply_jpeg_compression(self, image, bbs, quality=(70, 99)):  # JPEG 압축 품질 조정
         # 이미지가 2차원 배열인지 (즉, 그레이스케일 이미지인지) 확인
         if len(image.shape) == 2:
-            # 그레이스케일 이미지의 경우 채널 차원을 추가합니다.
             image = np.expand_dims(image, axis=-1)  # 이제 shape는 (height, width, 1)이 됩니다.
 
         # 이미지가 알파 채널을 포함하는 4채널 이미지인 경우 알파 채널 제거
@@ -357,10 +376,9 @@ class ImageAugmentationApp:
         return aug(image=image, bounding_boxes=bbs)
 
     def apply_saturation(self, image, bbs, mul=(0.5, 1.5)):  # 채도 조정
-        if len(image.shape) == 2 or image.shape[2] == 1:  # 이미지가 그레이스케일인지 확인
-            image = np.stack((image.squeeze(),) * 3, axis=-1)  # 그레이스케일을 RGB로 변환
+        if len(image.shape) == 2 or image.shape[2] == 1: 
+            image = np.stack((image.squeeze(),) * 3, axis=-1) 
 
-        # 이미지가 알파 채널을 포함하는 4채널 이미지인 경우 알파 채널 제거
         elif image.shape[2] == 4:
             image = self.remove_alpha_channel(image)
         
@@ -372,7 +390,6 @@ class ImageAugmentationApp:
         return image[:, :, :3]  # 처음 세 채널 (R, G, B)만 유지
         
     def get_param_with_defaults(self, params, param_name, default_min, default_max):
-        # params 딕셔너리에서 값 추출하고, 값이 있으면 float 형으로 변환
         min_value = params.get(f"{param_name}_min")
         if min_value is not None:
             min_value = float(min_value)
@@ -386,47 +403,78 @@ class ImageAugmentationApp:
             max_value = default_max  # max_value가 None이면 기본값 사용
 
         return (min_value, max_value)
-    
+
+    def convert_yolo_to_bbox(self, width, height, yolo_data):
+        """
+        YOLO 형식의 바운딩 박스 데이터를 전통적인 (x1, y1, x2, y2) 형식으로 변환합니다.
+
+        :param yolo_data: YOLO 형식의 데이터 (라벨, x_center, y_center, width, height).
+        :return: 라벨과 (x1, y1, x2, y2) 형식의 튜플.
+        """
+        # yolo_data 리스트에서 정보 추출
+        label = yolo_data[0]
+        abs_x_center = yolo_data[1] * width
+        abs_y_center = yolo_data[2] * height
+        abs_box_width = yolo_data[3] * width
+        abs_box_height = yolo_data[4] * height
+
+        # (x1, y1)은 왼쪽 상단 모서리를 나타냅니다.
+        x1 = abs_x_center - (abs_box_width / 2)
+        y1 = abs_y_center - (abs_box_height / 2)
+
+        # (x2, y2)는 오른쪽 하단 모서리를 나타냅니다.
+        x2 = abs_x_center + (abs_box_width / 2)
+        y2 = abs_y_center + (abs_box_height / 2)
+
+        return label, (x1, y1, x2, y2)
+
     def perform_augmentation(self):
-        # 선택한 이미지의 인덱스들 가져오기
         selection_indices = self.image_listbox.curselection()
         if not selection_indices:
             return
         
-        # 함수 실행 수를 입력받기
         try:
             execution_count = int(self.execution_count_entry.get())
         except ValueError:
             execution_count = 1 # exception일 때 강제로 값 1로 세팅
             return
 
-        function_params = self.get_input_values()  # 입력 필드에서 매개변수 가져오기
+        function_params = self.get_input_values()
         current_option = self.selected_option.get()
         
-        # 현재 날짜와 시간을 이용하여 폴더 이름 생성
         folder_name = datetime.now().strftime('%Y%m%d_%H%M%S')
-        os.makedirs(folder_name, exist_ok=True)  # 폴더 생성, 이미 존재할 경우 생성하지 않음
+        os.makedirs(folder_name, exist_ok=True)
 
-        # 선택된 모든 이미지에 대해 증강 작업 수행
         for index in selection_indices:
             image = self.original_images[index]            
-            image_name, image_extentsion = os.path.splitext(image.filename.split("/")[-1])
-            image_np = self.original_images_np[index]
-
-            bbs = BoundingBoxesOnImage([
-                    BoundingBox(x1=0.4*447, x2=0.65*447, y1=0.1*298, y2=0.4*298)
-                ], shape=image_np.shape)
+            image_name, image_extension = os.path.splitext(image.filename.split("/")[-1])
+            image_np, label_data = self.original_images_np[index]
+            image_height, image_width, channel = image_np.shape
             
+            converted_bboxes = []
+            bbs = None
+
+            if label_data is not None:
+                # 각 YOLO 데이터에 대해 변환 수행
+                for yolo_data in label_data:
+                    label, (x1, y1, x2, y2) = self.convert_yolo_to_bbox(image_width, image_height, yolo_data)
+                    bbox = BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2, label=label)
+                    converted_bboxes.append(bbox)
+                
+                bbs = BoundingBoxesOnImage(converted_bboxes, shape=image_np.shape)
+
             j = 0
             for i in range(execution_count):  # 설정된 실행 횟수만큼 반복
                 transformed_image_np = image_np.copy()
+                transformed_bbs = bbs.copy()
 
+                print(transformed_bbs)
                 if current_option == "직접 augmentation 함수를 지정":
                     if self.function_check_vars[0].get():  
-                        transformed_image_np, bbs = self.apply_fliplr(transformed_image_np, bbs)
+                        transformed_image_np, transformed_bbs = self.apply_fliplr(transformed_image_np, transformed_bbs)
 
                     if self.function_check_vars[1].get():  # "상하 반전"
-                        transformed_image_np, bbs = self.apply_flipud(transformed_image_np, bbs)
+                        transformed_image_np, transformed_bbs = self.apply_flipud(transformed_image_np, transformed_bbs)
 
                     if self.function_check_vars[2].get():  # "아핀 변환"
                         params = function_params.get("아핀 변환", {})
@@ -435,45 +483,46 @@ class ImageAugmentationApp:
                         translate_percent = self.get_param_with_defaults(params, "translate_percent", -0.1, 0.1)
                         rotate = self.get_param_with_defaults(params, "rotate", -45, 45)
                         shear = self.get_param_with_defaults(params, "shear", -16, 16)
-                        transformed_image_np, bbs = self.apply_affine(transformed_image_np, bbs, scale_x, scale_y, translate_percent, rotate, shear)
+                        transformed_image_np, transformed_bbs = self.apply_affine(transformed_image_np, transformed_bbs, scale_x, scale_y, translate_percent, rotate, shear)
 
                     if self.function_check_vars[3].get():  # "Crop and Pad"
                         params = function_params.get("확대-축소 변환", {})
                         percent = self.get_param_with_defaults(params, "percent", -0.25, 0.25)
-                        transformed_image_np, bbs = self.apply_CropAndPad(transformed_image_np, bbs, percent)
+                        transformed_image_np, transformed_bbs = self.apply_CropAndPad(transformed_image_np, transformed_bbs, percent)
 
                     if self.function_check_vars[4].get():  # "가우시안 노이즈 추가"
                         params = function_params.get("가우시안 노이즈", {})
                         noise = self.get_param_with_defaults(params, "noise", 0.01 * 255, 0.05 * 255)
-                        transformed_image_np, bbs = self.apply_gaussian_noise(transformed_image_np, bbs, noise)
+                        transformed_image_np, transformed_bbs = self.apply_gaussian_noise(transformed_image_np, transformed_bbs, noise)
 
                     if self.function_check_vars[5].get():  # "명암 대비 조정"
                         params = function_params.get("명암 변경", {})
                         alpha = self.get_param_with_defaults(params, "alpha", 0.5, 2)
-                        transformed_image_np, bbs = self.apply_contrast_norm(transformed_image_np, bbs, alpha)
+                        transformed_image_np, transformed_bbs = self.apply_contrast_norm(transformed_image_np, transformed_bbs, alpha)
 
                     if self.function_check_vars[6].get():  # "가우시안 블러"
                         params = function_params.get("가우시안 블러", {})
                         sigma = self.get_param_with_defaults(params, "sigma", 0.0, 3.0)
-                        transformed_image_np, bbs = self.apply_gaussian_blur(transformed_image_np, bbs, sigma)
+                        transformed_image_np, transformed_bbs = self.apply_gaussian_blur(transformed_image_np, transformed_bbs, sigma)
 
                     if self.function_check_vars[7].get():  # "선명도 조절"
                         params = function_params.get("선명도 변경", {})
                         alpha = self.get_param_with_defaults(params, "alpha", 0.0, 1.0)
                         lightness = self.get_param_with_defaults(params, "lightness", 0.75, 1.5)
-                        transformed_image_np, bbs = self.apply_sharpen(transformed_image_np, bbs, alpha, lightness)
+                        transformed_image_np, transformed_bbs = self.apply_sharpen(transformed_image_np, transformed_bbs, alpha, lightness)
 
                     if self.function_check_vars[8].get():  # "JPEG 압축 품질 조정"
                         params = function_params.get("JPEG 압축 품질 조정", {})
                         quality = self.get_param_with_defaults(params, "quality", 70, 99)
-                        transformed_image_np, bbs = self.apply_jpeg_compression(transformed_image_np, bbs, quality)
+                        transformed_image_np, transformed_bbs = self.apply_jpeg_compression(transformed_image_np, transformed_bbs, quality)
 
                     if self.function_check_vars[9].get():  # "채도 조정"
                         params = function_params.get("채도 변경", {})
                         mul = self.get_param_with_defaults(params, "mul", 0.5, 1.5)
-                        transformed_image_np, bbs = self.apply_saturation(transformed_image_np, bbs, mul)
-
-                    self.save_image(transformed_image_np, folder_name, image_name, i, image_extentsion)
+                        transformed_image_np, transformed_bbs = self.apply_saturation(transformed_image_np, transformed_bbs, mul)
+                    
+                    print(transformed_bbs)
+                    self.save_image(transformed_image_np, folder_name, image_name, i, image_extension, transformed_bbs)
  
                 elif current_option == "모든 augmentation 함수를 실행":
                     augmentations = [
@@ -500,8 +549,9 @@ class ImageAugmentationApp:
 
                     for aug_function, params in augmentations:
                         transformed_image_np = image_np.copy()
-                        transformed_image_np, bbs = aug_function(transformed_image_np, bbs, *params)
-                        self.save_image(transformed_image_np, folder_name, image_name, i + j + 1, image_extentsion)  # i + 1은 각 증강 후의 고유한 파일 이름을 위함
+                        transformed_bbs = bbs.copy()
+                        transformed_image_np, transformed_bbs = aug_function(transformed_image_np, transformed_bbs, *params)
+                        self.save_image(transformed_image_np, folder_name, image_name, i + j + 1, image_extension, transformed_bbs) 
                         j += 1
 
                 elif current_option == "모든 경우의 수의 augmentation 함수를 실행":
@@ -530,7 +580,6 @@ class ImageAugmentationApp:
                         (self.apply_saturation, [self.get_param_with_defaults(function_params.get("채도 변경", {}), "mul", 0.5, 1.5)], self.function_check_vars[9].get())
                     ]
 
-                    # 체크박스의 상태가 True인 augmentation만 선택합니다.
                     checked_augmentations = [aug for aug in augmentations if aug[2]]  # 각 'aug'는 (function, params, is_checked) 구조를 가집니다.
 
                     # 가능한 모든 조합 생성 (빈 조합 포함)
@@ -539,23 +588,20 @@ class ImageAugmentationApp:
                     # 각 조합에 대해 증강 작업 수행
                     for comb in all_combinations:
                         transformed_image_np_comb = image_np.copy()  # 원본 이미지 복사본 생성
+                        transformed_bbs = bbs.copy()
                         for aug_function, params, _ in comb:  # 체크 상태는 여기서는 무시합니다 (_).
-                            transformed_image_np_comb, bbs = aug_function(transformed_image_np_comb, bbs, *params)
+                            transformed_image_np_comb, transformed_bbs = aug_function(transformed_image_np_comb, transformed_bbs, *params)
                         
-                            # 증강된 이미지 저장
                         if comb:
-                            self.save_image(transformed_image_np_comb, folder_name, image_name, i + j + 1, image_extentsion)
-                            j += 1  # j 값을 증가시켜 고유한 파일 이름 생성
+                            self.save_image(transformed_image_np_comb, folder_name, image_name, i + j + 1, image_extension, transformed_bbs)
+                            j += 1  
 
-    def save_image(self, image_np, folder_name, index, i, image_extentsion):
-        # 이미지 저장 함수를 정의하여 중복 코드를 줄입니다.
-        augmented_image_filename = f"{index}_{i}{image_extentsion}"  # 또는 원하는 다른 형식
-
-        # 이미지 저장 경로 설정 (생성한 폴더 내)
+    def save_image(self, image_np, folder_name, index, i, image_extension, bbs):
+        augmented_image_filename = f"{index}_{i}{image_extension}"  
         save_path = os.path.join(folder_name, augmented_image_filename)
-        if image_extentsion == ".jpg":
+        
+        if image_extension == ".jpg":
             if image_np.ndim == 2:  # 그레이스케일 이미지
-                # 이미지가 그레이스케일인 경우, PIL 형식에 맞게 변환
                 image_to_save = Image.fromarray(image_np, mode='L')
             elif image_np.shape[2] == 1:  # 단일 채널 이미지
                 image_np = image_np.squeeze(-1)  # 마지막 차원 제거
@@ -566,7 +612,79 @@ class ImageAugmentationApp:
                 image_np = image_np[:, :, :3]
                 image_to_save = Image.fromarray(image_np, mode='RGB')  # 'RGBA': (4x8-bit pixels, true color with transparency mask)
 
-        image_to_save.save(save_path)  # 이미지 파일로 저장
+        image_to_save.save(save_path) 
+        
+        if self.label_creation_var.get() == 1 and bbs is not None:
+            img_height, img_width, channel = image_np.shape
+
+            txt_filename = os.path.splitext(augmented_image_filename)[0] + ".txt"
+            txt_save_path = os.path.join(folder_name, txt_filename)
+
+            with open(txt_save_path, "w") as txt_file:
+                for bb in bbs.bounding_boxes:
+
+                    class_id = bb.label  
+
+                    x, y, w, h = self.to_yolo_format(bb, img_width, img_height)
+
+                    txt_file.write(f"{class_id} {x} {y} {w} {h}\n")
+
+            # TEST
+            # # 바운딩 박스를 그린 이미지를 저장하기 위한 파일명 생성
+            # augmented_image_with_bb_filename = f"{index}_{i}_with_bb{image_extension}"
+            # save_path_with_bb = os.path.join(folder_name, augmented_image_with_bb_filename)
+
+            # # 이미 저장된 PIL 이미지 객체를 NumPy 배열로 변환합니다.
+            # image_np_cv2 = np.array(image_to_save)
+
+            # if bbs is not None:
+            #     for bb in bbs.bounding_boxes:
+            #         # 바운딩 박스 좌표가 이미지 경계 내에 있는지 확인하고, 필요한 경우 조정
+            #         x1 = int(self.clamp(bb.x1, 0, img_width))
+            #         y1 = int(self.clamp(bb.y1, 0, img_height))
+            #         x2 = int(self.clamp(bb.x2, 0, img_width))
+            #         y2 = int(self.clamp(bb.y2, 0, img_height))
+
+            #         # 이미지에 바운딩 박스 그리기
+            #         cv2.rectangle(image_np_cv2, (x1, y1), (x2, y2), (0, 255, 0), 2)  # 녹색 바운딩 박스
+
+            # # 바운딩 박스가 그려진 이미지를 파일로 저장
+            # cv2.imwrite(save_path_with_bb, image_np_cv2)
+
+    def clamp(self, value, min_value, max_value):
+        """주어진 값이 특정 범위 내에 있는지 확인하고, 범위를 벗어나면 조정합니다."""
+        return max(min(value, max_value), min_value)
+
+    def to_yolo_format(self, bb, img_width, img_height):
+
+        # 바운딩 박스 좌표가 음수인 경우 0으로 설정
+        bb.x1 = max(0, bb.x1)
+        bb.y1 = max(0, bb.y1)
+
+        # 바운딩 박스 좌표가 이미지 크기를 초과하는 경우 이미지 크기로 설정
+        bb.x2 = min(img_width, bb.x2)
+        bb.y2 = min(img_height, bb.y2)
+
+        # 바운딩 박스의 중심 좌표 계산
+        x_center = bb.x1 + (bb.x2 - bb.x1) / 2.0
+        y_center = bb.y1 + (bb.y2 - bb.y1) / 2.0
+
+        # 바운딩 박스의 너비와 높이 계산
+        width = bb.x2 - bb.x1
+        height = bb.y2 - bb.y1
+
+        # YOLO 형식으로 변환 (상대적인 값)
+        x_center /= img_width
+        y_center /= img_height
+        width /= img_width
+        height /= img_height
+
+        print(x_center, y_center, width, height)
+
+        if x_center > 1.0 or y_center > 1.0 or width > 1.0 or height > 1.0:
+            raise ValueError("YOLO format requires normalized values less than or equal to 1.0")
+
+        return x_center, y_center, width, height
     
 if __name__ == "__main__":
     root = tk.Tk()
