@@ -679,6 +679,11 @@ class ImageAugmentationApp:
         width /= img_width
         height /= img_height
 
+        x_center = round(x_center, 5)
+        y_center = round(y_center, 5)
+        width = round(width, 5)
+        height = round(height, 5)
+
         print(x_center, y_center, width, height)
 
         if x_center > 1.0 or y_center > 1.0 or width > 1.0 or height > 1.0:
