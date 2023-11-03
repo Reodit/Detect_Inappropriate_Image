@@ -3,6 +3,7 @@ Using YOLOv5 to detect inappropriate images (Hamas symbols)
 
 ## Installation
 
+**파이썬 3.7이상 버전이 필요합니다.
 1. setup.py 를 실행하여 필요 패키지를 다운받습니다.
 
 ## Augmentation
