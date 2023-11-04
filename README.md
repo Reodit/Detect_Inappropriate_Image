@@ -4,6 +4,7 @@ Using YOLOv5 to detect inappropriate images (Hamas symbols)
 ## Installation
 
 **파이썬 3.7이상 버전이 필요합니다.
+**윈도우에서만 실행 가능합니다.
 1. setup.py 를 실행하여 필요 패키지를 다운받습니다.
 
 ## Augmentation
@@ -19,5 +20,7 @@ Using YOLOv5 to detect inappropriate images (Hamas symbols)
 ## Object Detection
 
 1. 모든 패키지를 설치했으면 screen_capture.py를 실행합니다
-2. cmd 창에서 캡쳐하고자 하는 윈도우의 번호를 입력합니다. 단, 주 모니터에 있어야 합니다.
-3. 현재 하마스 심볼만 학습이 되어있는 상태이므로, 하마스만 검출합니다다
+2. cmd 창에서 캡쳐하고자 하는 윈도우의 번호를 입력합니다. 
+**단, 듀얼 모니터 사용 시, 캡쳐된 화면은 주 모니터에 있어야 합니다. (캡쳐되고자 하는 화면은 보조 모니터에 있어도 괜찮습니다.)
+
+4. 현재 하마스 심볼만 학습이 되어있는 상태이므로, 하마스만 검출합니다
