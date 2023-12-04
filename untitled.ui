@@ -26,7 +26,7 @@
     <property name="title">
      <string>GroupBox</string>
     </property>
-    <widget class="QPushButton" name="pushButton_2">
+    <widget class="QPushButton" name="run_model_pushButton">
      <property name="geometry">
       <rect>
        <x>40</x>
@@ -52,7 +52,7 @@
       <string>Run Script</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="comboBox">
+    <widget class="QComboBox" name="scripts_comboBox">
      <property name="geometry">
       <rect>
        <x>40</x>
@@ -88,7 +88,7 @@
       <string>Scripts</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="comboBox_2">
+    <widget class="QComboBox" name="ai_module_comboBox">
      <property name="geometry">
       <rect>
        <x>40</x>
@@ -97,6 +97,16 @@
        <height>22</height>
       </rect>
      </property>
+     <item>
+      <property name="text">
+       <string>easy_ocr</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>yolov5</string>
+      </property>
+     </item>
     </widget>
     <widget class="QLabel" name="label_3">
      <property name="geometry">
@@ -124,7 +134,7 @@
       <enum>Qt::Horizontal</enum>
      </property>
     </widget>
-    <widget class="QListWidget" name="listWidget_2">
+    <widget class="QListWidget" name="custom_train_data_ListWidget">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -147,6 +157,19 @@
       <string>custom train data</string>
      </property>
     </widget>
+    <widget class="QPushButton" name="screen_capture_pushButton">
+     <property name="geometry">
+      <rect>
+       <x>30</x>
+       <y>330</y>
+       <width>101</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>screen_capture</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="Program" native="true">
     <property name="geometry">
@@ -165,6 +188,18 @@
        <width>611</width>
        <height>371</height>
       </rect>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>611</width>
+       <height>371</height>
+      </size>
      </property>
     </widget>
     <widget class="QTabWidget" name="tabWidget">
