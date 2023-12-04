@@ -41,7 +41,8 @@ class MyApp(QtWidgets.QMainWindow):
             self.process_with_easyocr(screenshot)
 
     def process_with_yolov5(self, np_image, weight_fileName):
-        model_path = f'E:/ProjectGit/Detect_Inappropriate_Image/weights/exp1/{weight_fileName}'
+        current_directory = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(current_directory, 'weights', 'exp1', weight_fileName)
         model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path)
 
         model.conf = 0.25  # confidence threshold
