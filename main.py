@@ -100,7 +100,7 @@ class MyApp(QtWidgets.QMainWindow):
 
     def load_weights_files(self):
         current_directory = os.path.dirname(os.path.abspath(__file__))
-        weights_folder = os.path.join(current_directory, 'weights\exp1')
+        weights_folder = os.path.join(current_directory, 'weights', 'exp1')
 
         try:
             files = os.listdir(weights_folder)
